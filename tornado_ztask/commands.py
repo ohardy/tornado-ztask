@@ -99,6 +99,18 @@ class ZTaskdCommand(Command):
         if cursor is not None:
             cursor.loop(callback=self._on_select)
         
+        for uid, task in options.scheduled_tasks.items():
+            if not 'schedule' in task:
+                raise Exception('schedule is required')
+            
+            if isinstance(task['schedule'], timedelta):
+                module = get_module_from_import(task['task'])
+                periodic = tornado.ioloop.PeriodicCallback(
+                    partial(module, *task.get('args', []), **task.get('kwargs', {})),
+                    task['schedule'].seconds * 1000, io_loop=self.ioloop)
+                
+                periodic.start()
+        
         install_queue_handler(self.ioloop)
         
         if 0:#options.debug:
