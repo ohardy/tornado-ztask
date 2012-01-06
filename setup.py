@@ -197,6 +197,7 @@ setup(
     # requires=['virtualenv',
               # 'virtualenvwrapper (>=2.0)',
               # ],
+    install_requires=["pyzmq"],
     include_package_data = True,
     package_data = find_package_data('tornado_ztask',
                                      package='tornado_ztask',
