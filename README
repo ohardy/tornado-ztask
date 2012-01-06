@@ -1,0 +1,39 @@
+Idea
+====
+
+Thanks to https://github.com/dmgctrl/django-ztask/ for the idea and base implementation
+
+Tornado-ztask
+=============
+Tornado-ztask is licensed under the Apache Licence, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0.html).
+
+Installation
+============
+To install:
+
+    python setup.py build
+    sudo python setup.py install
+
+Tornado-ztask has been tested on Python 2.7.
+
+Add a task
+================
+
+from tornado_ztask.decorators import task
+
+@task()
+def hello(text):
+    print 'Hello %s !' % (text, )
+    
+if __name__ == '__main__':
+    hello.async('World')
+    
+Running the server
+==================
+
+For running this server, you need my fork of tornado.
+
+After go to your project and do :
+
+    tornado local ztaskd
