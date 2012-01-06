@@ -149,6 +149,8 @@ is_jython = sys.platform.startswith("java")
 if is_jython:
     install_requires.append("simplejson")
 
+install_requires.append("pyzmq")
+
 #install_requires.append("archive-manager==dev")
 if os.path.exists("README.rst"):
     long_description = codecs.open("README.rst", "r", "utf-8").read()
@@ -197,7 +199,6 @@ setup(
     # requires=['virtualenv',
               # 'virtualenvwrapper (>=2.0)',
               # ],
-    install_requires=["pyzmq"],
     include_package_data = True,
     package_data = find_package_data('tornado_ztask',
                                      package='tornado_ztask',
