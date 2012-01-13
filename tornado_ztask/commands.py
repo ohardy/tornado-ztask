@@ -45,12 +45,10 @@ ZTASKD_RETRY_AFTER = 30
 
 class ZTaskdCommand(Command):
     """docstring for ServerCommand"""
-    name       = 'ztaskd'
-    ioloop     = None
-    func_cache = {}
-    
-    def add_arguments(self, subparser):
-        pass
+    name        = 'ztaskd'
+    ioloop      = None
+    func_cache  = {}
+    require_env = True
     
     def handle(self, replay_failed=False):
         """docstring for handle"""
@@ -109,6 +107,7 @@ class ZTaskdCommand(Command):
                     partial(module, *task.get('args', []), **task.get('kwargs', {})),
                     task['schedule'].seconds * 1000, io_loop=self.ioloop)
                 
+                logging.info('Starting periodic (%ss) for %s' % (task['schedule'].seconds, uid, ))
                 periodic.start()
         
         install_queue_handler(self.ioloop)
