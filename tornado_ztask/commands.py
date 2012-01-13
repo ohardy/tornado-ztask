@@ -182,4 +182,29 @@ class ZTaskdCommand(Command):
             else:
                 after = task['next_attempt'] - datetime.combine(date.today(), time())
                 self.ioloop.add_timeout(after, lambda: self._call_function(task['_id']))
-            
+
+
+class ZTaskAsyncCommand(Command):
+    """docstring for ServerCommand"""
+    name        = 'ztask:async'
+    
+    def add_arguments(self, subparser):
+        """docstring for add_arguments"""
+        subparser.add_argument('name')
+        subparser.add_argument('arguments', nargs='*')
+    
+    def handle(self, name, arguments):
+        """docstring for handle"""
+        
+        from tornado.reloaded.utils import get_module_from_import
+        
+        try:
+            mod = get_module_from_import(name)
+        except:
+            raise Exception('This method doesnt exist')
+        
+        for argument in arguments:
+            if '=' in argument:
+                raise Exception('Kwargs argument is currently not supported')
+        
+        mod.async(*arguments)
