@@ -103,9 +103,14 @@ class ZTaskdCommand(Command):
             
             if isinstance(task['schedule'], timedelta):
                 module = get_module_from_import(task['task'])
+                func = partial(module.async, *task.get('args', []), **task.get('kwargs', {}))
                 periodic = tornado.ioloop.PeriodicCallback(
-                    partial(module, *task.get('args', []), **task.get('kwargs', {})),
+                    func,
                     task['schedule'].seconds * 1000, io_loop=self.ioloop)
+                
+                if task.get('run_on_init', False):
+                    logging.info('run_on_init for %s enabled' % (uid, ))
+                    func()
                 
                 logging.info('Starting periodic (%ss) for %s' % (task['schedule'].seconds, uid, ))
                 periodic.start()
@@ -208,3 +213,28 @@ class ZTaskAsyncCommand(Command):
                 raise Exception('Kwargs argument is currently not supported')
         
         mod.async(*arguments)
+
+class ZTaskCallCommand(Command):
+    """docstring for ServerCommand"""
+    name        = 'ztask:call'
+    
+    def add_arguments(self, subparser):
+        """docstring for add_arguments"""
+        subparser.add_argument('name')
+        subparser.add_argument('arguments', nargs='*')
+    
+    def handle(self, name, arguments):
+        """docstring for handle"""
+        
+        from tornado.reloaded.utils import get_module_from_import
+        
+        try:
+            mod = get_module_from_import(name)
+        except Exception as e:
+            raise Exception('This method doesnt exist : %s' % (e, ))
+        
+        for argument in arguments:
+            if '=' in argument:
+                raise Exception('Kwargs argument is currently not supported')
+        
+        mod(*arguments)
