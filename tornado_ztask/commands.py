@@ -177,7 +177,7 @@ class ZTaskdCommand(Command):
                 kwargs        = pickle.loads(str(response['kwargs']))
                 
                 if response['retry_count'] >= ZTASKD_RETRY_COUNT:
-                    logger.error('Retry count exceeded')
+                    logging.error('Retry count exceeded')
                     return
             
             else:
