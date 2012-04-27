@@ -49,18 +49,27 @@ class ZTaskdCommand(Command):
     ioloop      = None
     func_cache  = {}
     require_env = True
+    nb_running  = 0
+    stop_next   = False
     
-    def handle(self, replay_failed=False):
+    @gen.engine
+    def handle(self, replay_failed=False, max_running=1, time_between_check=600):
         """docstring for handle"""
         
         self.ioloop = IOLoop(ZMQPoller())
         self.ioloop.install()
         
+        self.max_running = max_running
+        self.time_between_check = time_between_check
         context = zmq.Context()
         socket  = context.socket(zmq.PULL)
         socket.bind("tcp://127.0.0.1:5000")
         
         self.db = get_db()
+        
+        self.periodic = tornado.ioloop.PeriodicCallback(
+            self.run,
+            time_between_check * 1000, io_loop=self.ioloop)
         
         def install_queue_handler(ioloop):
             def _queue_handler(socket, *args, **kwargs):
@@ -89,13 +98,13 @@ class ZTaskdCommand(Command):
         # Reload tasks if necessary
         cursor = None
         
-        if replay_failed:
-            cursor = self.db.ztask.find()
-        else:
-            cursor = self.db.ztask.find()
+        # if replay_failed:
+            # cursor = self.db.ztask.find()
+        # else:
+            # cursor = self.db.ztask.find()
         
-        if cursor is not None:
-            cursor.loop(callback=self._on_select)
+        # if cursor is not None:
+            # cursor.loop(callback=self._on_select)
         
         for uid, task in options.scheduled_tasks.items():
             if not 'schedule' in task:
@@ -117,15 +126,48 @@ class ZTaskdCommand(Command):
         
         install_queue_handler(self.ioloop)
         
+        self.run()
+        
+        self.periodic.start()
+        
         if 0:#options.debug:
             from tornado import autoreload
             autoreload.add_reload_hook(partial(install_queue_handler, self.ioloop))
             autoreload.start(io_loop=self.ioloop)
         
-        self.ioloop.start()
+        try:
+            self.ioloop.start()
+        except KeyboardInterrupt:
+            if self.stop_next:
+                self.ioloop.stop()
+            if self.nb_running and not self.stop_next:
+                self.stop_next = True
     
     @gen.engine
-    def _call_function(self, task_id):
+    def run(self):
+        """docstring for run"""
+        if self.stop_next:
+            self.ioloop.stop()
+            return
+        if self.nb_running < self.max_running:
+            self.periodic.stop()
+            while 1 and self.nb_running < self.max_running:
+                response = yield gen.Task(self.db.ztask.find_one, {})
+                if response:
+                    _ = yield gen.Task(self._call_function, response['_id'])
+                else:
+                    break
+            self.periodic.start()
+        # else:
+            # logging.info('Already max running')
+        
+    
+    @gen.engine
+    def _call_function(self, task_id, callback):
+        if self.nb_running < self.max_running:
+            self.nb_running += 1
+        else:
+            return
         try:
             response = yield gen.Task(self.db.ztask.find_one, {'_id' : task_id})
             
@@ -149,7 +191,7 @@ class ZTaskdCommand(Command):
             
             function = self.func_cache[function_name]
             
-            function(*args, **kwargs)
+            _ = yield gen.Task(function, *args, **kwargs)
             logging.info('Called %s successfully' % function_name)
             response = yield gen.Task(self.db.ztask.remove, {'_id' : task_id})
         except Exception as e:
@@ -173,20 +215,34 @@ class ZTaskdCommand(Command):
                 }, callback=self._on_insert)
             
             traceback.print_exc(e)
+        finally:
+            self.nb_running -= 1
+            callback()
     
     def _on_insert(self, response):
         """docstring for _on_insert"""
-        if response:
-            self.ioloop.add_timeout(timedelta(seconds=1), lambda: self._call_function(response))
+        logging.info('Successfull add task %s to queue' % (response, ))
+        self.run()
+        # if response:
+            # self.ioloop.add_timeout(timedelta(seconds=1), lambda: self._call_function(response))
+            
+    def _on_select_one(self, response):
+        """docstring for _on_select_one"""
+        _ = yield gen.Task(self._call_function, response['_id'])
     
     def _on_select(self, response):
         """docstring for _on_select"""
         for task in response:
             if task['next_attempt'] < datetime.combine(date.today(), time()):
-                self.ioloop.add_timeout(timedelta(seconds=5), lambda: self._call_function(task['_id']))
+                pass
+                # self.ioloop.add_timeout(timedelta(seconds=5), lambda: self._call_function(task['_id']))
             else:
                 after = task['next_attempt'] - datetime.combine(date.today(), time())
-                self.ioloop.add_timeout(after, lambda: self._call_function(task['_id']))
+                @gen.engine
+                def func(self):
+                    """docstring for func"""
+                    _ = gen.Task(self._call_function, task['_id'])
+                self.ioloop.add_timeout(after, func)
 
 
 class ZTaskAsyncCommand(Command):
