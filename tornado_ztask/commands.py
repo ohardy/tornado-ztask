@@ -152,7 +152,7 @@ class ZTaskdCommand(Command):
         if self.nb_running < self.max_running:
             self.periodic.stop()
             while 1 and self.nb_running < self.max_running:
-                response = yield gen.Task(self.db.ztask.find_one, {})
+                response = yield gen.Task(self.db.ztask.find_one, {'retry_count' : {'$lt' : ZTASKD_RETRY_COUNT}})
                 if response:
                     _ = yield gen.Task(self._call_function, response['_id'])
                 else:
@@ -178,10 +178,14 @@ class ZTaskdCommand(Command):
                 
                 if response['retry_count'] >= ZTASKD_RETRY_COUNT:
                     logging.error('Retry count exceeded')
+                    self.nb_running -= 1
+                    callback()
                     return
             
             else:
-                logging.info('Count not get task with id %s:%s' % (task_id, response, ))
+                logging.info('Could not get task with id %s:%s' % (task_id, response, ))
+                self.nb_running -= 1
+                callback()
                 return
             
             logging.info('Calling %s' % (function_name, ))
@@ -195,7 +199,7 @@ class ZTaskdCommand(Command):
             logging.info('Called %s successfully' % function_name)
             response = yield gen.Task(self.db.ztask.remove, {'_id' : task_id})
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             
             self.db.ztask.update({
                     '_id' : task_id
@@ -214,14 +218,15 @@ class ZTaskdCommand(Command):
                     }
                 }, callback=self._on_insert)
             
-            traceback.print_exc(e)
+            # traceback.print_exc(e)
         finally:
             self.nb_running -= 1
             callback()
     
     def _on_insert(self, response):
         """docstring for _on_insert"""
-        logging.info('Successfull add task %s to queue' % (response, ))
+        if response:
+            logging.info('Successfull add task %s to queue' % (response, ))
         self.run()
         # if response:
             # self.ioloop.add_timeout(timedelta(seconds=1), lambda: self._call_function(response))
