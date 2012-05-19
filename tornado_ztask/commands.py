@@ -29,12 +29,12 @@ from tornado import gen
 
 from tornado.web import url
 
-from tornado.reloaded.management import Command
+from tornado_reloaded.management import Command
 
 from tornado.options import options
-from tornado.reloaded.db import get_db
+from tornado_reloaded.db import get_db
 
-from tornado.reloaded.utils import get_module_from_import
+from tornado_reloaded.utils import get_module_from_import
 
 import zmq
 from tornado.ioloop import IOLoop
@@ -262,7 +262,7 @@ class ZTaskAsyncCommand(Command):
     def handle(self, name, arguments):
         """docstring for handle"""
         
-        from tornado.reloaded.utils import get_module_from_import
+        from tornado_reloaded.utils import get_module_from_import
         
         try:
             mod = get_module_from_import(name)
@@ -287,7 +287,7 @@ class ZTaskCallCommand(Command):
     def handle(self, name, arguments):
         """docstring for handle"""
         
-        from tornado.reloaded.utils import get_module_from_import
+        from tornado_reloaded.utils import get_module_from_import
         
         try:
             mod = get_module_from_import(name)

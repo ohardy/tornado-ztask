@@ -208,7 +208,7 @@ setup(
         # 'virtualenvwrapper.initialize': [
         #             'user_scripts = virtualenvwrapper.user_scripts:initialize',
         #             ],
-        'tornado.reloaded.management.commands': [
+        'tornado_reloaded.management.commands': [
             'commands = tornado_ztask.commands',
         ]
         

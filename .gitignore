@@ -1,5 +1,6 @@
 # Can ignore specific files
 .DS_Store
+build/
 
 # Use wildcards as well
 *~
