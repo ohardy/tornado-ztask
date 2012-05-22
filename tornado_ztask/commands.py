@@ -63,7 +63,7 @@ class ZTaskdCommand(Command):
         self.time_between_check = time_between_check
         context = zmq.Context()
         socket  = context.socket(zmq.PULL)
-        socket.bind("tcp://127.0.0.1:5000")
+        socket.bind("tcp://127.0.0.1:%d" % (options.ztask_port))
         
         self.db = get_db()
         

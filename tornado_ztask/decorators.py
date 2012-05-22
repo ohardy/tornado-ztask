@@ -2,6 +2,8 @@ import logging
 from functools import wraps
 import types
 
+from tornado.options import options
+
 import zmq
 
 logger = logging.getLogger('ztaskd')
@@ -20,7 +22,7 @@ def task():
         
         context = zmq.Context()
         socket = context.socket(PUSH)
-        socket.connect("tcp://127.0.0.1:5000")
+        socket.connect("tcp://127.0.0.1:%d" % (options.ztask_port, ))
         
         @wraps(func)
         def _func(*args, **kwargs):
